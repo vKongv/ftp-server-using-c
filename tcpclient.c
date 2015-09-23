@@ -1,6 +1,7 @@
 /* tcpclient.c */
-/* Version 0.1
-   Allows user to read file from server by providing the file name / path
+/* Version 0.2
+   Add menu for client to select
+   Tokenize server message and display different result based on server status
 */
 #include "inet.h"
 #define BUFSIZE 1024
@@ -33,17 +34,32 @@ int main (int argc, char *argv[]){
     exit(1);
   }
 
+  char *msg[2] = {"SELECTING",""};
   for(;;){
-    printf("\nPlease enter the COMPLETE path of the document you want to the SERVER [type /q to quit]\n");
+
+    if ((strcmp(msg[0],"SELECTING")) == 0)
+      printf("1. Read file \n2. Write file (Not yet done)\nYour selection: ");
+    else if ((strcmp(msg[0],"DISPLAYING")) == 0)
+      printf("\nPlease enter the COMPLETE path of the document you want to the SERVER [type /q to quit]\n");
     gets(buffer); /* Get input from user*/
     send (sockfd, buffer, BUFSIZE, 0); /* Send the data to server */
     /* If the incoming request is "/q" means user want to quit */
-    if((strcmp(buffer, "/q") == 0)){
-      break;
-    }
+    //if((strcmp(buffer, "/q") == 0)){
+      //break;
+    //}
     bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
     recv(sockfd, buffer, BUFSIZE, 0); /* Receive message from server */
-    printf ("Message received from server : \n%s\n", buffer); // Print out the message received from server
+    printf("Before strtok: %s\n", buffer);
+    char *tempString = strtok(buffer,"^");
+    printf("After strtok: %s\n", tempString);
+    int i = 0;
+      while(tempString){
+        printf("Transfering data to msg: %s\n", tempString);
+        msg[i] = tempString;
+        tempString = strtok(NULL, "");
+        i++;
+      }
+    printf ("Message received from server : \n%s\n", msg[1]); // Print out the message received from server
   }
 
   close (sockfd); /* Close the connecting port */
