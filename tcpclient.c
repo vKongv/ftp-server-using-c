@@ -1,9 +1,6 @@
 /* tcpclient.c */
-/* Version 0.4
-    Major update - User able to upload file to server's user_data directory
-    Other changes:
-    - User can download and upload any kind of file. (Before this, limit to 1024 bytes only)
-    - Improve code readability
+/* Version 0.5
+    - Detect same file name and auto rename to other filename
 */
 #include "inet.h"
 #define BUFSIZE 1024
@@ -14,7 +11,7 @@ struct sockaddr_in serv_addr;
 
 int errorChecking();
 int getFileSize(FILE *);
-
+int fileExists(const char *);
 int main (int argc, char *argv[]){
 
   if (argc <= 1){
@@ -101,10 +98,13 @@ int main (int argc, char *argv[]){
       send (sockfd, buffer, BUFSIZE, 0); /* Send the data to server */
       bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
       recv(sockfd, buffer, BUFSIZE, 0); /* Receive file name from server */
+
       strcpy(tempFName,buffer);
+      printf("File name: %s\n", tempFName);
       printf("In downloading...\n");
       if(!(errorChecking())){
         recv(sockfd, tempFSizeS, 40, 0); /* Receive file size from server */
+        printf("File size: %s\n", tempFSizeS);
         tempFSize = atoi(tempFSizeS); // Convert the file size string to integer
         tempFCont = (char *) malloc(tempFSize); //Assign the file size to the string file content
         recv(sockfd, tempFCont, tempFSize, 0); /* Receive file content from server */
@@ -117,18 +117,19 @@ int main (int argc, char *argv[]){
         strcat(tempPathName, tempFName);
         printf("Finished create path ... \nPath: %s\n", tempPathName);
         int j = 0;
+        char *oriPathName = (char *) malloc(BUFSIZE + 1);
+        strcpy(oriPathName, tempPathName);
         while(fileExists(tempPathName)){
           j++;
-          printf("File Number: %d", j);
           char fileNumber[4]; //Temp string to store file number
           char tempMsg0[BUFSIZE + 1]; //Temp string to store message content
           char *tempPNE[2]; //To store path name and extension seperately
-          int tempJ;
+          int tempJ = 0;
           while(tempJ < 2){
             tempPNE[tempJ] = (char *) malloc(BUFSIZE + 1);
             tempJ++;
           }
-          strcpy(tempMsg0,tempPathName);
+          strcpy(tempMsg0,oriPathName);
           char *tempFNameExt = strtok(tempMsg0, "."); //Temp string to store file extension
           int k = 0;
           while(tempFNameExt){
@@ -209,9 +210,9 @@ int errorChecking(){
 }
 
 int fileExists(const char *fname){
-    FILE *file;
-    if (file = fopen(fname, "r")){
-        fclose(file);
+    int fd;
+    if ((fd = open(fname, 0)) >= 0){
+        close(fd);
         return 1;
     }
     return 0;
