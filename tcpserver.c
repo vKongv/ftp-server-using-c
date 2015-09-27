@@ -73,7 +73,10 @@ void quit(int);
 int checkQuit(const char *, int);
 
 int main () {
-  // To receive new client connected signal from child
+  /**
+      SIGUSR1 = When client connected, issue this Signal
+      SIGUSR2 = When client disconnected, issue this Signal
+  **/
   static struct sigaction pact_c, pact_d;
   pact_c.sa_handler = countClient;
   pact_d.sa_handler = disClient;
@@ -113,7 +116,7 @@ int main () {
   }
   else if(childpid == 0){
     printf("Retrieving IP address...\n");
-    if((execl("retrieveIP", "retrieveIP", (char *) 0)) == -1){
+    if((execl("retrieveip", "retrieveip", (char *) 0)) == -1){
       exit(1);
     }
 		exit(0);
@@ -151,11 +154,11 @@ int main () {
   //sleep(5);
   strcpy(currentStatus, STATUS[0]);
   clilen = sizeof(cli_addr); /* Get the size of client address */
-  new_sockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen); /* Accept the connection and assign a new socket to handle it*/
+  if ((new_sockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen)) == -1){
+    continue;
+  } /* Accept the connection and assign a new socket to handle it*/
 
   if(fork() == 0){
-    printf("In fork()\n");
-    sleep(5);
     int tempPID = getppid();
     //To handle CRTL-C
     static struct sigaction exitC;
@@ -195,7 +198,6 @@ int main () {
           close(new_sockfd);
           //bzero(buffer,sizeof(buffer));
           printf("Preparing to exit...\n");
-          sleep(5);
           exit(0);
         }
         printf("\nReceived message [%s] from CLIENT\n", buffer);
@@ -218,6 +220,7 @@ int main () {
           case 3:
             strcpy(buffer, "Bye!\n");
             send(new_sockfd, buffer, BUFSIZE,0); /* Send an OK message to client */
+            kill(tempPID, SIGUSR2);
             close(new_sockfd);  /* Close the processing socket */
             exit(0);
           default:
@@ -286,18 +289,19 @@ int main () {
         strcpy(tempFName, buffer);
         printf("File name is: %s\n", tempFName);
         send(new_sockfd, tempFName, BUFSIZE,0);  /* Send the file name to client */
-
+        sleep(1);
         tempFSize = getFileSize(tempFile);
         fclose(tempFile);
         fd = open(tempDir, 0);
         printf("File size is: %d\n", tempFSize);
         sprintf(tempFSizeS, "%d", tempFSize); //Convert file size to string
         send(new_sockfd, tempFSizeS, 40,0);  /* Send the file size to client */
-
+        sleep(1);
         tempFCont = (char *) malloc(tempFSize); //Allocate file size to the content
         read (fd, tempFCont, tempFSize); //Read the file content into the buffer
         printf("File content: %s\n", tempFCont);
         send(new_sockfd, tempFCont, tempFSize,0);  /* Send the file name to client */
+        sleep(1);
         close(fd);
         recv(new_sockfd,buffer,BUFSIZE,0);
         if(checkQuit(buffer, tempPID)){
@@ -443,8 +447,7 @@ int loadUserDirectory(){
 }
 
 void sendInitialMessage(){
-  strcat(buffer, "^");
-  strcat(buffer, currentStatus);
+  send(new_sockfd, currentStatus, BUFSIZE,0);  /* Send the initial message to client */
   send(new_sockfd, buffer, BUFSIZE,0);  /* Send the initial message to client */
 }
 
