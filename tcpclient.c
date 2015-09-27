@@ -59,31 +59,33 @@ int main (int argc, char *argv[]){
     tempI++;
   }
   for(;;){
-    recv(sockfd, buffer, BUFSIZE, 0); /* Receive message from server */
-    if(checkQuit(buffer)){
+    char tempStatus[BUFSIZE + 1];
+    recv(sockfd, tempStatus, BUFSIZE, 0); /* Receive message from server */
+    if(checkQuit(tempStatus)){
       close(sockfd);
-      bzero(buffer,sizeof(buffer));
+      bzero(tempStatus,sizeof(tempStatus));
       exit(0);
     }
-    char *tempMsg = strtok(buffer,"^");
-    //printf("After strtok: %s\n", tempMsg);
-    int i = 0;
-      while(tempMsg){
-        //printf("Transfering data to msg: %s\n", tempMsg);
-        strcpy(msg[i], tempMsg);
-        tempMsg = strtok(NULL, "^");
-        i++;
-      }
-    printf("Server status: %s\n", msg[1]); //First message is to display
-    printf("\n%s\n",msg[0]);
-    if((strcmp(msg[1], STATUS[4])) == 0){
+    // char *tempMsg = strtok(buffer,"^");
+    // //printf("After strtok: %s\n", tempMsg);
+    // int i = 0;
+    //   while(tempMsg){
+    //     //printf("Transfering data to msg: %s\n", tempMsg);
+    //     strcpy(msg[i], tempMsg);
+    //     tempMsg = strtok(NULL, "^");
+    //     i++;
+    //   }
+    printf("Server status: %s\n", tempStatus); //First message is to display
+    recv(sockfd, buffer, BUFSIZE, 0); /* Receive message from server */
+    printf("\n%s\n",buffer);
+    if((strcmp(tempStatus, STATUS[4])) == 0){
       printf("Server: Crashed...\nExiting...\n");
       exit(1);
     }
     //bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
     gets(buffer);
     //If the server status is DOWNLOADING, provide
-    if((strcmp(msg[1], STATUS[1])) == 0){
+    if((strcmp(tempStatus, STATUS[1])) == 0){
       send (sockfd, buffer, BUFSIZE, 0); /* Send the data to server */
       bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
       recv(sockfd, buffer, BUFSIZE, 0); /* Receive file name from server */
@@ -96,7 +98,7 @@ int main (int argc, char *argv[]){
       if((errorChecking()))
         break;
     }
-    else if((strcmp(msg[1], STATUS[2])) == 0){
+    else if((strcmp(tempStatus, STATUS[2])) == 0){
       /**
       First receive file name
       Second receive file size
@@ -114,6 +116,7 @@ int main (int argc, char *argv[]){
       char tempPathName[BUFSIZE + 1]; //Path name
       char *tempFCont; //File content
       send (sockfd, buffer, BUFSIZE, 0); /* Send the data to server */
+      sleep(1);
       bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
       recv(sockfd, buffer, BUFSIZE, 0); /* Receive file name from server */
       if(checkQuit(buffer)){
