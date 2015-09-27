@@ -477,7 +477,6 @@ void countClient(int sig){
 
 int checkQuit(const char *tempStr, int parentID){
   if ((strcmp(tempStr, ERR_MSG[3])) == 0){
-    //printf("In checkQuit() success...\n");
     write(p1[1], inet_ntoa(cli_addr.sin_addr),BUFSIZE); //Write IP address into pipe
     kill(parentID, SIGUSR2);
     return 1;
@@ -488,18 +487,13 @@ int checkQuit(const char *tempStr, int parentID){
 
 void disClient(int sig){
   bzero(&cli_addr, sizeof(cli_addr));
-  printf("In disClient() \n");
-  //sleep(5);
   char tempIP[BUFSIZE + 1];
   if((read(p1[0], tempIP, BUFSIZE)) <= 0){
     perror("Server: Read pipe fail...\n");
     exit(1);
   }
-  printf("Successful read...\n");
-  //sleep(5);
   connectedClient --;
   printf("\n****************************CLIENT DISCONNECTED****************************\n");
   printf("No. Active Client: %d\n", connectedClient);
   printf("Disconnected client IP address: %s\n", tempIP );
-  //sleep(5);
 }
