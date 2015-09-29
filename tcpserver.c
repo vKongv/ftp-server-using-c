@@ -232,7 +232,6 @@ int main () {
       else if ((strcmp(currentStatus, STATUS[2])) == 0){
         char *temptemp;
         temptemp = (char *) malloc(BUFSIZE + 1);
-        printf("Buffer is: %s\n", buffer);
         int tempFSize; //File size
         char *tempFSizeS = (char *) malloc(40); //Char file size
         char *tempFName = (char *) malloc(BUFSIZE + 1); //File name
@@ -244,7 +243,6 @@ int main () {
           exit(1);
         }
         read(fddir,temptemp,BUFSIZE);
-        printf("Buffer is: %s\n", temptemp);
         char *tempBuf = (char *) malloc(BUFSIZE + 1);
         char *tempTokBuf = (char *) malloc(BUFSIZE + 1);
         strcpy(tempBuf,temptemp);
@@ -259,7 +257,6 @@ int main () {
         //Compiling initial message
         char tempMsg[BUFSIZE + 1];
         strcpy(tempMsg, temptemp);
-        printf("tempMsg:  %s\n", tempMsg);
         strcat(tempMsg,"\n");
         strcpy(buffer, "Please enter the file NAME you want to the SERVER [type /q to go to previous page]\n\nChoose from the listed file(s):\n\n");
         strcat(buffer, tempMsg);
@@ -298,20 +295,19 @@ int main () {
         tempFSize = getFileSize(tempFile);
         fclose(tempFile);
         fd = open(tempDir, 0);
-        printf("File size is: %d\n bytes", tempFSize);
+        printf("File size is: %d bytes\n ", tempFSize);
         sprintf(tempFSizeS, "%d", tempFSize); //Convert file size to string
         send(new_sockfd, tempFSizeS, strlen(tempFSizeS) + 1,0);  /* Send the file size to client */
         recv(new_sockfd, confirmation, CONSIZE + 1, 0);
         //sleep(1);
         tempFCont = (char *) malloc(tempFSize); //Allocate file size to the content
         read (fd, tempFCont, tempFSize); //Read the file content into the buffer
-        printf("File content: %s\n", tempFCont);
         do{
           send(new_sockfd, tempFCont, tempFSize,0);  /* Send the file content to client */
           int temp = recv(new_sockfd, confirmation, CONSIZE + 1, 0);
-          printf("File size is: %d bytes", temp);
           if(temp == CONSIZE + 1){
             break;
+          printf("File size is: %d bytes \n", temp);
           sleep(1);
           }
         }while(1);
@@ -370,7 +366,7 @@ int main () {
         }
         tempFSize = atoi (tempFSizeS);
         tempFCont = (char *) malloc(tempFSize); //Assign the file size to the string file content
-        printf("File size: %s\n bytes", tempFSizeS);
+        printf("File size: %s bytes\n ", tempFSizeS);
         while((recv(new_sockfd, tempFCont, tempFSize, 0)) != tempFSize){
           printf("Received file size is not the same...\n");
           send(sockfd, "NOT OK", 7, 0);
