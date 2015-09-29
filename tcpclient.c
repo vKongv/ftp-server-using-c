@@ -149,7 +149,7 @@ int main (int argc, char *argv[]){
           bzero(tempFSizeS,sizeof(tempFSizeS));
           exit(0);
         }
-        printf("File size: %s\n bytes", tempFSizeS);
+        printf("File size: %s bytes\n ", tempFSizeS);
         tempFSize = atoi(tempFSizeS); // Convert the file size string to integer
         tempFCont = (char *) malloc(tempFSize); //Assign the file size to the string file content
         while((recv(sockfd, tempFCont, tempFSize, 0)) != tempFSize){
@@ -201,7 +201,6 @@ int main (int argc, char *argv[]){
         int tempFd;
         tempFd = creat (tempPathName, 00777);
         write(tempFd,tempFCont,tempFSize);
-        printf("Message content: %s\n", tempFCont);
         printf("Finished downloaded... File is stored at: %s\n", tempPathName);
         send(sockfd, "OK", 3, 0);
         recv(sockfd, confirmation, CONSIZE + 1, 0);
@@ -259,7 +258,6 @@ int main (int argc, char *argv[]){
       tempFCont = (char *) malloc(tempFSize); //Allocate file size to the content
       fd = open(tempPathName, 0);
       read (fd, tempFCont, tempFSize); //Read the file content into the buffer
-      printf("File content: %s\n", tempFCont);
       do{
         send(sockfd, tempFCont, tempFSize,0);  /* Send the file name to client */
         sleep(1);
