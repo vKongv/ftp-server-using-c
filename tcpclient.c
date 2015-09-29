@@ -5,10 +5,10 @@
     - Some minor code changes
 */
 #include "inet.h"
-#define BUFSIZE 1024
 
 int sockfd;
-char buffer[BUFSIZE+1];
+char *buffer;
+char * confirmation;
 struct sockaddr_in serv_addr;
 
 int errorChecking();
@@ -17,8 +17,10 @@ int fileExists(const char *);
 void quit(int);
 int checkQuit(const char *);
 
-int main (int argc, char *argv[]){
 
+int main (int argc, char *argv[]){
+  buffer = (char *)malloc(BUFSIZE + 1);
+  confirmation = (char *)malloc(BUFSIZE + 1);
   if (argc <= 1){
     printf("How to use: %s remoteIPaddress [example: ./client 127.0.0.1]\n", argv[0]);
     exit(1);
@@ -59,8 +61,12 @@ int main (int argc, char *argv[]){
     tempI++;
   }
   for(;;){
+    //sleep(1);
+    //printf("Restarted\n");
+    bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
     char tempStatus[BUFSIZE + 1];
-    recv(sockfd, tempStatus, BUFSIZE, 0); /* Receive message from server */
+    int temp = recv(sockfd, tempStatus, BUFSIZE, 0); /* Receive message from server */
+    send(sockfd, REPLYCONF, CONSIZE + 1, 0);
     if(checkQuit(tempStatus)){
       close(sockfd);
       bzero(tempStatus,sizeof(tempStatus));
@@ -76,7 +82,9 @@ int main (int argc, char *argv[]){
     //     i++;
     //   }
     printf("Server status: %s\n", tempStatus); //First message is to display
-    recv(sockfd, buffer, BUFSIZE, 0); /* Receive message from server */
+    bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
+    temp = recv(sockfd, buffer, BUFSIZE, 0); /* Receive message from server */
+    send(sockfd, REPLYCONF, CONSIZE + 1, 0);
     printf("\n%s\n",buffer);
     if((strcmp(tempStatus, STATUS[4])) == 0){
       printf("Server: Crashed...\nExiting...\n");
@@ -86,9 +94,11 @@ int main (int argc, char *argv[]){
     gets(buffer);
     //If the server status is DOWNLOADING, provide
     if((strcmp(tempStatus, STATUS[1])) == 0){
-      send (sockfd, buffer, BUFSIZE, 0); /* Send the data to server */
+      send (sockfd, buffer, strlen(buffer) + 1, 0); /* Send the data to server */
+      recv(sockfd, confirmation, CONSIZE + 1, 0);
       bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
       recv(sockfd, buffer, BUFSIZE, 0); /* Receive file name from server */
+      send(sockfd, REPLYCONF, CONSIZE + 1, 0);
       if(checkQuit(buffer)){
         bzero(buffer,sizeof(buffer));
         close(sockfd);
@@ -107,7 +117,8 @@ int main (int argc, char *argv[]){
       //FILE *fd; // File descriptor to write new file
       if((strcmp(buffer,"/q")) == 0){
         system("clear");
-        send(sockfd,buffer,BUFSIZE,0);
+        send(sockfd,buffer,strlen(buffer) + 1,0);
+        recv(sockfd, confirmation, CONSIZE + 1, 0);
         continue;
       }
       int tempFSize; //File size
@@ -115,30 +126,37 @@ int main (int argc, char *argv[]){
       char *tempFName = (char *) malloc(BUFSIZE + 1); //File name
       char tempPathName[BUFSIZE + 1]; //Path name
       char *tempFCont; //File content
-      send (sockfd, buffer, BUFSIZE, 0); /* Send the data to server */
-      sleep(1);
+      send (sockfd, buffer, strlen(buffer) + 1, 0); /* Send the data to server */
+      recv(sockfd, confirmation, CONSIZE + 1, 0);
+      //sleep(1);
       bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
-      recv(sockfd, buffer, BUFSIZE, 0); /* Receive file name from server */
+      int tempRecSize;
+      tempRecSize = recv(sockfd, buffer, BUFSIZE, 0); /* Receive file name from server */
+      send(sockfd, REPLYCONF, CONSIZE + 1, 0);
       if(checkQuit(buffer)){
         bzero(buffer,sizeof(buffer));
         close(sockfd);
         exit(0);
       }
-
       strcpy(tempFName,buffer);
       printf("File name: %s\n", tempFName);
       printf("In downloading...\n");
       if(!(errorChecking())){
         recv(sockfd, tempFSizeS, 40, 0); /* Receive file size from server */
+        send(sockfd, REPLYCONF, CONSIZE + 1, 0);
         if(checkQuit(tempFSizeS)){
           close(sockfd);
           bzero(tempFSizeS,sizeof(tempFSizeS));
           exit(0);
         }
-        printf("File size: %s\n", tempFSizeS);
+        printf("File size: %s\n bytes", tempFSizeS);
         tempFSize = atoi(tempFSizeS); // Convert the file size string to integer
         tempFCont = (char *) malloc(tempFSize); //Assign the file size to the string file content
-        recv(sockfd, tempFCont, tempFSize, 0); /* Receive file content from server */
+        while((recv(sockfd, tempFCont, tempFSize, 0)) != tempFSize){
+          printf("Received file size is not the same...\n");
+          send(sockfd, "NOT OK", 7, 0);
+        } /* Receive file content from client */
+        send(sockfd, REPLYCONF, CONSIZE + 1, 0);
         if(checkQuit(tempFCont)){
           bzero(tempFCont,sizeof(tempFCont));
           close(sockfd);
@@ -185,7 +203,8 @@ int main (int argc, char *argv[]){
         write(tempFd,tempFCont,tempFSize);
         printf("Message content: %s\n", tempFCont);
         printf("Finished downloaded... File is stored at: %s\n", tempPathName);
-        send(sockfd, "OK", BUFSIZE, 0);
+        send(sockfd, "OK", 3, 0);
+        recv(sockfd, confirmation, CONSIZE + 1, 0);
         printf("\n****************************SUCCESSFUL DOWNLOAD****************************\n");
       }
       else{
@@ -193,7 +212,7 @@ int main (int argc, char *argv[]){
       }
     }
 
-    else if ((strcmp(msg[1], STATUS[3])) == 0){
+    else if ((strcmp(tempStatus, STATUS[3])) == 0){
       printf("Buffer is %s\n", buffer);
       int fd;
       int tempFSize; //File size
@@ -203,14 +222,16 @@ int main (int argc, char *argv[]){
       char *tempFCont; //File content
       if((strcmp(buffer,"/q")) == 0){
         system("clear");
-        send(sockfd,buffer,BUFSIZE,0);
+        send(sockfd,buffer,strlen(buffer) + 1,0);
+        recv(sockfd, confirmation, CONSIZE + 1, 0);
         continue;
       }
       strcpy(tempPathName, buffer);
       FILE *tempFile;
       //Check file exist or not
       if ((tempFile = fopen (tempPathName, "r+")) == NULL){
-        send(sockfd, ERR_MSG[0],25,0);
+        send(sockfd, ERR_MSG[0],strlen(ERR_MSG[0]) + 1,0);
+        recv(sockfd, confirmation, CONSIZE + 1, 0);
         printf("File open fail\n");
         continue;
       }
@@ -225,11 +246,13 @@ int main (int argc, char *argv[]){
         tempBuf2 = strtok(NULL, "/");
       }
       printf("Real file name is: %s\n", realFName);
-      send(sockfd, realFName, BUFSIZE, 0); //Send file name to server
+      send(sockfd, realFName, strlen(realFName) + 1, 0); //Send file name to server
+      recv(sockfd, confirmation, CONSIZE + 1, 0);
       printf("File name is: %s\n",realFName);
       tempFSize = getFileSize(tempFile);
       sprintf(tempFSizeS, "%d", tempFSize);
-      send(sockfd,tempFSizeS,40,0); //Send file size to server
+      send(sockfd,tempFSizeS,strlen(tempFSizeS) + 1,0); //Send file size to server
+      recv(sockfd, confirmation, CONSIZE + 1, 0);
       fclose(tempFile);
       printf("Passed file size to server\n");
       printf("Path name is: %s\n", tempPathName);
@@ -237,9 +260,13 @@ int main (int argc, char *argv[]){
       fd = open(tempPathName, 0);
       read (fd, tempFCont, tempFSize); //Read the file content into the buffer
       printf("File content: %s\n", tempFCont);
-      send(sockfd, tempFCont, tempFSize,0);  //Send the file content to server
+      do{
+        send(sockfd, tempFCont, tempFSize,0);  /* Send the file name to client */
+        sleep(1);
+      }while(recv(sockfd, confirmation, CONSIZE + 1, 0) != CONSIZE + 1);
       close(fd);
       recv(sockfd,buffer,BUFSIZE,0);
+      send(sockfd, REPLYCONF, CONSIZE + 1, 0);
       if(checkQuit(buffer)){
         bzero(buffer,sizeof(buffer));
         close(sockfd);
@@ -282,7 +309,8 @@ int getFileSize(FILE *fdo){
 
 void quit(int sig){
   printf("Quit now...\n");
-  send(sockfd, ERR_MSG[3], 20, 0);
+  send(sockfd, ERR_MSG[3], strlen(ERR_MSG[3]) + 1, 0);
+  recv(sockfd, confirmation, CONSIZE + 1, 0);
   close(sockfd);
   exit(0);
 }
