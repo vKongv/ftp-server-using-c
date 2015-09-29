@@ -6,7 +6,7 @@
     - Two major functions are working fine.
 */
 #include "inet.h"
-#define BUFSIZE 1024
+
 
 /**
   Tokenizer list:
@@ -34,8 +34,9 @@ int childpid;
 int childStatus = 0;
 int sockfd, new_sockfd, clilen;
 int yes = 1;
+char * confirmation;
 char *servIP;
-char buffer[BUFSIZE + 1];
+char *buffer;
 //char displayMessage[BUFSIZE + 1];
 char directory[BUFSIZE + 1];
 struct sockaddr_in serv_addr, cli_addr;
@@ -72,6 +73,8 @@ void disClient(int);
 int checkQuit(const char *, int);
 
 int main () {
+  buffer = (char *)malloc(BUFSIZE + 1);
+  confirmation = (char *) malloc (CONSIZE + 1);
   /**
       SIGUSR1 = When client connected, issue this Signal
       SIGUSR2 = When client disconnected, issue this Signal
@@ -166,7 +169,7 @@ int main () {
     kill(tempPID, SIGUSR1); //Send the signal SIGUSR1 to parent
 
     if(new_sockfd > 0){
-      printf("\nClient connected now.");
+      printf("\nClient connected now.\n");
     }
     //Status = SELECTING
     strcpy(currentStatus, STATUS[1]);
@@ -189,6 +192,7 @@ int main () {
         sendInitialMessage(); // Send initial message
         printf("\n****************************In Main Menu****************************\n");
         recv(new_sockfd,buffer,BUFSIZE,0); /* Receive message from client */
+        send(new_sockfd, REPLYCONF, CONSIZE + 1, 0);
         if(checkQuit(buffer, tempPID)){
           close(new_sockfd);
           //bzero(buffer,sizeof(buffer));
@@ -204,29 +208,31 @@ int main () {
         switch(selection){
           case 1:
             strcpy(currentStatus, STATUS[2]);
-            strcpy(buffer, "OK");
-            send(new_sockfd, buffer, BUFSIZE,0);  /* Send an OK message to client */
+            send(new_sockfd, "OK", 2,0);  /* Send an OK message to client */
+            recv(new_sockfd, confirmation, CONSIZE + 1, 0);
             continue;
           case 2:
             strcpy(currentStatus, STATUS[3]);
-            strcpy(buffer, "OK");
-            send(new_sockfd, buffer, BUFSIZE,0);  /* Send an OK message to client */
+            send(new_sockfd, "OK", 2,0);  /* Send an OK message to client */
+            recv(new_sockfd, confirmation, CONSIZE + 1, 0);
             continue;
           case 3:
-            strcpy(buffer, "Bye!\n");
-            send(new_sockfd, buffer, BUFSIZE,0); /* Send an OK message to client */
-            kill(tempPID, SIGUSR2);
+            send(new_sockfd, "Bye!\n", 6,0); /* Send an OK message to client */
+            checkQuit(ERR_MSG[3],tempPID);
             close(new_sockfd);  /* Close the processing socket */
             exit(0);
           default:
             strcpy(currentStatus, STATUS[1]);
-            strcpy(buffer, "Invalid selection!\n");
-            send(new_sockfd, buffer, BUFSIZE,0);  /* Send error message to client */
+            send(new_sockfd, "Invalid selection!\n", 20,0);  /* Send error message to client */
+            recv(new_sockfd, confirmation, CONSIZE + 1, 0);
             continue;
         }
       }
       //Downlaod function
       else if ((strcmp(currentStatus, STATUS[2])) == 0){
+        char *temptemp;
+        temptemp = (char *) malloc(BUFSIZE + 1);
+        printf("Buffer is: %s\n", buffer);
         int tempFSize; //File size
         char *tempFSizeS = (char *) malloc(40); //Char file size
         char *tempFName = (char *) malloc(BUFSIZE + 1); //File name
@@ -237,28 +243,30 @@ int main () {
           perror("Cannot open directory.txt.\n");
           exit(1);
         }
-
-        bzero (buffer, sizeof(buffer)); /* Clear all the data in the buffer */
-        read(fddir,buffer,BUFSIZE);
-        char *tempBuf = (char *) malloc(BUFSIZE);
-        strcpy(tempBuf,buffer);
-        strtok(tempBuf,"$");
-        strcpy(buffer,"");
-        while(tempBuf){
-          strcat(buffer, tempBuf);
-          strcat(buffer, "   ");
-          tempBuf = strtok(NULL, "$");
+        read(fddir,temptemp,BUFSIZE);
+        printf("Buffer is: %s\n", temptemp);
+        char *tempBuf = (char *) malloc(BUFSIZE + 1);
+        char *tempTokBuf = (char *) malloc(BUFSIZE + 1);
+        strcpy(tempBuf,temptemp);
+        tempTokBuf = strtok(tempBuf,"$");
+        strcpy(temptemp, "");
+        while(tempTokBuf){
+          strcat(temptemp, tempTokBuf);
+          strcat(temptemp, "   ");
+          tempTokBuf = strtok(NULL, "$");
         }
         close(fddir);
         //Compiling initial message
         char tempMsg[BUFSIZE + 1];
-        strcpy(tempMsg, buffer);
+        strcpy(tempMsg, temptemp);
+        printf("tempMsg:  %s\n", tempMsg);
         strcat(tempMsg,"\n");
         strcpy(buffer, "Please enter the file NAME you want to the SERVER [type /q to go to previous page]\n\nChoose from the listed file(s):\n\n");
         strcat(buffer, tempMsg);
         sendInitialMessage();
         printf("\n****************************Displaying Downlaod page****************************\n");
         recv(new_sockfd,buffer,BUFSIZE,0); /* Receive message from client */
+        send(new_sockfd, REPLYCONF, CONSIZE + 1, 0);
         if(checkQuit(buffer, tempPID)){
           close(new_sockfd);
           bzero(buffer,sizeof(buffer));
@@ -276,29 +284,41 @@ int main () {
 
         FILE *tempFile;
         if ((tempFile = fopen (tempDir, "r+")) == NULL ){
-          send(new_sockfd, ERR_MSG[0], 25, 0);
+          send(new_sockfd, ERR_MSG[0], strlen(ERR_MSG[0]) + 1, 0);
+          recv(new_sockfd, confirmation, CONSIZE + 1, 0);
           printf("\n****************************FAIL DOWNLOAD****************************\n");
           continue;
         }
 
         strcpy(tempFName, buffer);
         printf("File name is: %s\n", tempFName);
-        send(new_sockfd, tempFName, BUFSIZE,0);  /* Send the file name to client */
-        sleep(1);
+        send(new_sockfd, tempFName, strlen(tempFName) + 1,0);
+        recv(new_sockfd, confirmation, CONSIZE + 1, 0);
+        //sleep(5);
         tempFSize = getFileSize(tempFile);
         fclose(tempFile);
         fd = open(tempDir, 0);
-        printf("File size is: %d\n", tempFSize);
+        printf("File size is: %d\n bytes", tempFSize);
         sprintf(tempFSizeS, "%d", tempFSize); //Convert file size to string
-        send(new_sockfd, tempFSizeS, 40,0);  /* Send the file size to client */
-        sleep(1);
+        send(new_sockfd, tempFSizeS, strlen(tempFSizeS) + 1,0);  /* Send the file size to client */
+        recv(new_sockfd, confirmation, CONSIZE + 1, 0);
+        //sleep(1);
         tempFCont = (char *) malloc(tempFSize); //Allocate file size to the content
         read (fd, tempFCont, tempFSize); //Read the file content into the buffer
         printf("File content: %s\n", tempFCont);
-        send(new_sockfd, tempFCont, tempFSize,0);  /* Send the file name to client */
-        sleep(1);
+        do{
+          send(new_sockfd, tempFCont, tempFSize,0);  /* Send the file content to client */
+          int temp = recv(new_sockfd, confirmation, CONSIZE + 1, 0);
+          printf("File size is: %d bytes", temp);
+          if(temp == CONSIZE + 1){
+            break;
+          sleep(1);
+          }
+        }while(1);
+        //sleep(1);
         close(fd);
         recv(new_sockfd,buffer,BUFSIZE,0);
+        send(new_sockfd, REPLYCONF, CONSIZE + 1, 0);
         if(checkQuit(buffer, tempPID)){
           close(new_sockfd);
           bzero(buffer,sizeof(buffer));
@@ -319,11 +339,12 @@ int main () {
         char tempPathName[BUFSIZE + 1]; //Path name
         char *tempFCont; //File content
 
-        strcpy(buffer, "Please enter the COMPLETE path of your file that you want to upload: \n");
+        strcpy(buffer, "Please enter the COMPLETE path of your file that you want to upload: [type /q to go to previous page]\n");
         sendInitialMessage();
         printf("\n****************************Displaying Upload page****************************\n");
         bzero(buffer,sizeof(buffer));
-        recv(new_sockfd, buffer, BUFSIZE, 0); /* Receive file name from server */
+        recv(new_sockfd, buffer, BUFSIZE, 0); /* Receive file name from client */
+        send(new_sockfd, REPLYCONF, CONSIZE + 1, 0);
         if(checkQuit(buffer, tempPID)){
           close(new_sockfd);
           bzero(buffer,sizeof(buffer));
@@ -341,6 +362,7 @@ int main () {
         printf("Receveid file name: %s\n", buffer);
         strcpy(tempFName,buffer);
         recv(new_sockfd, tempFSizeS, 40, 0); /* Receive file size from client */
+        send(new_sockfd, REPLYCONF, CONSIZE + 1, 0);
         if(checkQuit(tempFSizeS, tempPID)){
           close(new_sockfd);
           bzero(tempFSizeS,sizeof(tempFSizeS));
@@ -348,8 +370,15 @@ int main () {
         }
         tempFSize = atoi (tempFSizeS);
         tempFCont = (char *) malloc(tempFSize); //Assign the file size to the string file content
-        printf("File size: %s\n", tempFSizeS);
-        recv(new_sockfd, tempFCont, tempFSize, 0); /* Receive file content from client */
+        printf("File size: %s\n bytes", tempFSizeS);
+        while((recv(new_sockfd, tempFCont, tempFSize, 0)) != tempFSize){
+          printf("Received file size is not the same...\n");
+          send(sockfd, "NOT OK", 7, 0);
+          sleep(1);
+        }
+
+        /* Receive file content from client */
+        send(new_sockfd, REPLYCONF, CONSIZE + 1, 0);
         if(checkQuit(tempFCont, tempPID)){
           close(new_sockfd);
           bzero(tempFCont,sizeof(tempFCont));
@@ -394,7 +423,8 @@ int main () {
         write(tempFd,tempFCont,tempFSize);
         printf("Message content: %s\n", tempFCont);
         printf("Finished uploaded... File is stored at: %s\n", tempPathName);
-        send(new_sockfd, "OK", 20, 0); //Send success message to client
+        send(new_sockfd, "OK", 3, 0); //Send success message to client
+        recv(new_sockfd, confirmation, CONSIZE + 1, 0);
         printf("\n****************************SUCCESSFUL UPLOAD****************************\n");
       }
       //Unknow server error
@@ -411,7 +441,7 @@ int main () {
   else{
     pause(); //Wait for signal from child
     printf("After kill...\n");
-    sleep(5);
+    //sleep(5);
   }
   close(new_sockfd);  /* Close the processing socket */
 }
@@ -442,8 +472,10 @@ int loadUserDirectory(){
 }
 
 void sendInitialMessage(){
-  send(new_sockfd, currentStatus, BUFSIZE,0);  /* Send the initial message to client */
-  send(new_sockfd, buffer, BUFSIZE,0);  /* Send the initial message to client */
+  int temp = send(new_sockfd, currentStatus, strlen(currentStatus) + 1,0);  /* Send the initial message to client */
+  temp = recv(new_sockfd, confirmation, CONSIZE + 1, 0);
+  temp = send(new_sockfd, buffer, strlen(buffer) + 1,0);  /* Send the initial message to client */
+  temp = recv(new_sockfd, confirmation, CONSIZE + 1, 0);
 }
 
 int getFileSize(FILE *fdo){
