@@ -5,6 +5,7 @@
 - Edit the retrieveip.c line no. 11 if you are using different connection (Default is eth0), Use ifconfig to check.
 - Compile all the C files using gcc filename -o outfilename (Please use the same file name for the output file)
 - FINAL CHECKLIST: You should have the 3 executable files (tcpserver, tcpclient, retrieveip)
+- FOR BEST RESULT, PLEASE TEST BOTH CLIENT AND SERVER PROGRAM IN ONE MACHINE!!!
 
 #RUN THE PROGRAM
 - Run the server first (./tcpserver)
@@ -22,4 +23,5 @@
 #LIMITATION
 - ONLY can run in LINUX OS (Mac OS will need to edit the download path)
 - ONLY can run in the SAME machine! (Run in other machine will have some data transmission delay problem that cause serious bug in the program)
+- ONLY can run in different machine when sending TEXT files
 - CANNOT delete file(s)
