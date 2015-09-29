@@ -18,7 +18,10 @@
 #define SERV_TCP_PORT 25000
 #define SERV_UDP_PORT 35001
 #define CLI_UDP_PORT 35002
+#define BUFSIZE 1024
+#define CONSIZE 10
 
+const char *REPLYCONF = "++++++++++";
 const char *STATUS[] = {"LISTENING", "SELECTING", "DOWNLOADING", "UPLOADING", "ERROR"};
 const char *ERR_MSG[] = {"Cannot open the file\n", "Unknown Error\n", "Fail to upload\n", "Quit"};
 const char *CRASH_MSG = "Unknown Error\n";
