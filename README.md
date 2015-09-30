@@ -10,7 +10,6 @@
 - Run the server first (./tcpserver)
 - Then run the client in another terminal (./tcpclient ipaddressOfServer)
 - Perform the task you wanted.
-- PLEASE TEST THE PROGRAM IN LINUX AND ON THE SAME MACHINE, THERE ARE SOME BUGS WHEN DOING IN DIFERENT MACHINES
 
 #FEATURES
 - Able to download and upload file
