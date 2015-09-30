@@ -149,14 +149,10 @@ int main (int argc, char *argv[]){
           bzero(tempFSizeS,sizeof(tempFSizeS));
           exit(0);
         }
-        printf("File size: %s bytes\n ", tempFSizeS);
+        printf("File size: %s bytes\n", tempFSizeS);
         tempFSize = atoi(tempFSizeS); // Convert the file size string to integer
         tempFCont = (char *) malloc(tempFSize); //Assign the file size to the string file content
-        while((recv(sockfd, tempFCont, tempFSize, 0)) != tempFSize){
-          printf("Received file size is not the same...\n");
-          send(sockfd, "NOT OK", 7, 0);
-        } /* Receive file content from client */
-        send(sockfd, REPLYCONF, CONSIZE + 1, 0);
+
         if(checkQuit(tempFCont)){
           bzero(tempFCont,sizeof(tempFCont));
           close(sockfd);
@@ -199,8 +195,21 @@ int main (int argc, char *argv[]){
           strcpy(tempPathName, tempPNE[0]);
         }
         int tempFd;
+        int sumByte = 0;
         tempFd = creat (tempPathName, 00777);
-        write(tempFd,tempFCont,tempFSize);
+        while(1){
+          int temp;
+          lseek(tempFd,0,SEEK_END);
+          temp = recv(sockfd, tempFCont, tempFSize , 0);
+          write(tempFd,tempFCont,temp);
+          sumByte += temp;
+          if(sumByte == tempFSize){
+            break;
+          }
+        }
+        printf("File content is: %s\n",tempFCont);
+        send(sockfd, REPLYCONF, CONSIZE + 1, 0);
+
         printf("Finished downloaded... File is stored at: %s\n", tempPathName);
         send(sockfd, "OK", 3, 0);
         recv(sockfd, confirmation, CONSIZE + 1, 0);
@@ -258,10 +267,8 @@ int main (int argc, char *argv[]){
       tempFCont = (char *) malloc(tempFSize); //Allocate file size to the content
       fd = open(tempPathName, 0);
       read (fd, tempFCont, tempFSize); //Read the file content into the buffer
-      do{
-        send(sockfd, tempFCont, tempFSize,0);  /* Send the file name to client */
-        sleep(1);
-      }while(recv(sockfd, confirmation, CONSIZE + 1, 0) != CONSIZE + 1);
+      send(sockfd, tempFCont, tempFSize,0);  /* Send the file name to client */
+      recv(sockfd, confirmation, CONSIZE + 1, 0);
       close(fd);
       recv(sockfd,buffer,BUFSIZE,0);
       send(sockfd, REPLYCONF, CONSIZE + 1, 0);
